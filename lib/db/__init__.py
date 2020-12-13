@@ -1,2 +1,2 @@
 from . import db
-db.bulid()
+db.build()
