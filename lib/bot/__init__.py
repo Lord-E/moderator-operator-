@@ -8,14 +8,19 @@ from discord import Embed, File
 from discord.errors import HTTPException, Forbidden 
 from discord.ext.commands import Bot as BotBase
 from discord.ext.commands import Context
-from discord.ext.commands import (CommandNotFound, BadArgument, MissingRequiredArgument)
+from discord.ext.commands import (CommandNotFound, BadArgument, MissingRequiredArgument, CommandOnCooldown)
 
+from discord.ext.commands import when_mentioned_or
 from ..db import db
 
 PREFIX = "op."
 OWNER_IDS = [717486310566133844]
 COGS = [path.split("\\")[-1][:-3] for path in glob("./lib/cogs/*.py")]
 IGNORE_EXCEPTIONS = (CommandNotFound, BadArgument)
+
+def get_prefix(bot, message):
+    return when_mentioned_or(PREFIX)(bot, message)
+
 
 
 class Ready(object):
@@ -40,7 +45,7 @@ class Bot(BotBase):
 
 
         db.autosave(self.scheduler) 
-        super().__init__(command_prefix=PREFIX, owner_ids=OWNER_IDS)
+        super().__init__(command_prefix=get_prefix, owner_ids=OWNER_IDS)
 
     def setup(self):
         for cog in COGS:
@@ -69,7 +74,7 @@ class Bot(BotBase):
                 await self.invoke(ctx)
 
             else:
-                await ctx.send("I'm not readto recieve commands. Please wait a few seconds.")
+                await ctx.send("I'm not read to recieve commands. Please wait a few seconds.")
 
     async def rules_reminder(self):
         await self.stdout.send("You know the rules and so do I")
@@ -96,17 +101,28 @@ class Bot(BotBase):
         elif isinstance(exc, MissingRequiredArgument):
             await ctx.send("One or more arguments are missing")
 
-        elif isinstance(exc.original, HTTPException):
-            await ctx.send("Unable to send message.")
-
-        elif isinstance(exc.original, Forbidden):
-            await ctx.send("Unable to send message.")
+        elif isinstance(exc, CommandOnCooldown):
+            embed = Embed(title="2, 4, 6, 8, you should really decelerate", color=ctx.author.color, timestamp= datetime.utcnow())
+            fields = [(( "\u200b"), ( f"That command in on `{str(exc.cooldown.type).split('.')[-1]}` cooldown. Try again in `{exc.retry_after:,.2f}` secs."), True)]
+            
+            for name, value, inline in fields:
+                embed.add_field(name=name, value=value, inline=True)            
+            await self.stdout.send(embed=embed)
+            
 
         elif hasattr(exc, "original"):
-            raise exc.original
 
+        # elif isinstance(exc.original, HTTPException):
+        #     await ctx.send("Unable to send message.")
+
+            if isinstance(exc.original, Forbidden):
+                await ctx.send("Unable to send message.")
+
+            else:
+                raise exc.original
+            
         else:
-            raise exc.original
+            raise exc
 
 
     async def on_ready(self):
