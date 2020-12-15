@@ -30,7 +30,7 @@ def autosave(sched):
 def close():
     cxn.close()
 
-def feild(command, *values):
+def field(command, *values):
     cur.execute(command, tuple(values))
 
     if (fetch := cur.fetchone()) is not None:
