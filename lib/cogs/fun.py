@@ -72,7 +72,7 @@ class Fun(Cog):
 	@command(name="fact")
 	@cooldown(3, 180, BucketType.user)
 	async def animal_fact(self, ctx, animal: str):
-		if (animal := animal.lower()) in ("dog", "cat", "panda", "fox", "bird", "koala"):
+		if (animal := animal.lower()) in ("dog", "cat", "panda", "fox", "bird", "koala", "racoon", "kangaroo"):
 			fact_url = f"https://some-random-api.ml/facts/{animal.lower()}"
 			image_url = f"https://some-random-api.ml/img/{'birb' if animal == 'bird' else animal}"
 
@@ -143,6 +143,7 @@ class Fun(Cog):
 			member=member,
 			api="https://some-random-api.ml/animu/wink",
 			format="<author> winks to <member> " + " ".join(args))
+
 
 
 	@Cog.listener()

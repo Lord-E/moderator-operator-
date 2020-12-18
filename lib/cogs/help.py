@@ -16,6 +16,7 @@ def syntax(command):
 
 		params = " ".join(params)
 
+
 		return f"```{cmd_and_aliases} {params}```"
 
 class HelpMenu(ListPageSource):
@@ -49,10 +50,6 @@ class HelpMenu(ListPageSource):
 		return await self.write_page(menu, fields)
 
 
-		
-
-
-
 class Help(Cog):
 	def __init__(self, bot):
 		self.bot = bot 
@@ -62,7 +59,7 @@ class Help(Cog):
 		embed = Embed(title=f"Help with `{command}`",
 					  description=syntax(command),
 					  color=ctx.author.color)
-		embed.add_field(name="Command description", value=command.help)
+		embed.add_field(name="Command description", value=command)
 		await ctx.send(embed=embed)
 
 	@command(name="help")

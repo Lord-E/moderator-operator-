@@ -2,6 +2,7 @@ from asyncio import sleep
 from datetime import datetime
 from glob import glob
 
+from discord import Intents
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from discord import Embed, File
@@ -11,8 +12,10 @@ from discord.ext.commands import Context
 from discord.ext.commands import (CommandNotFound, BadArgument, MissingRequiredArgument, CommandOnCooldown)
 
 from discord.ext.commands import when_mentioned_or, command, has_permissions 
+
 from ..db import db
 
+# PREFIX = "op."
 OWNER_IDS = [717486310566133844]
 COGS = [path.split("\\")[-1][:-3] for path in glob("./lib/cogs/*.py")]
 IGNORE_EXCEPTIONS = (CommandNotFound, BadArgument)
@@ -20,7 +23,6 @@ IGNORE_EXCEPTIONS = (CommandNotFound, BadArgument)
 def get_prefix(bot, message):
     prefix = db.field("SELECT Prefix FROM guilds WHERE GuildID = ?", message.guild.id)
     return when_mentioned_or(prefix)(bot, message)
-
 
 
 class Ready(object):
@@ -39,12 +41,14 @@ class Bot(BotBase):
     def __init__(self):
         self.ready = False
         self.cogs_ready = Ready()
+
         self.guild = None
         self.scheduler = AsyncIOScheduler()
 
 
-        db.autosave(self.scheduler) 
-        super().__init__(command_prefix=get_prefix, owner_ids=OWNER_IDS)
+        db.autosave(self.scheduler)
+        super().__init__(command_prefix=get_prefix, owner_ids=OWNER_IDS, intents=Intents.all())
+
 
     def setup(self):
         for cog in COGS:
@@ -52,6 +56,16 @@ class Bot(BotBase):
             print(f" {cog} cog loaded")
         
         print("setup complete")
+
+    def update_db(self):
+        db.multiexec("INSERT OR IGNORE INTO guilds (GuildID) VALUES (?)",
+                    ((guild.id,) for guild in self.guilds))
+
+        db.multiexec("INSERT OR IGNORE INTO exp (UserID) VALUES (?)",
+                    ((member.id,) for guild in self.guilds for member in guild.members if not member.bot))
+
+        db.commit()
+
 
     def run(self, version):
         self.VERSION = version
@@ -133,6 +147,8 @@ class Bot(BotBase):
             self.scheduler.start()
 
 
+
+            self.update_db()
 
             # embed = Embed(title="This is the title", description="Discription", 
             #     color=0xB8821F, timestamp= datetime.utcnow())

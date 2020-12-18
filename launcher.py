@@ -4,4 +4,4 @@ VERSION = "15/42"
 
 bot.run(VERSION)
            
-#cmd /c taskkill /f /im python.exe  
+#cmd /c taskkill /f /im python.exe
