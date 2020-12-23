@@ -69,10 +69,31 @@ class Fun(Cog):
 		await wb.send(" ".join(args))
 		await wb.delete(reason="Mimic Webhook Deleted")
 
+	@command(name="quote")
+	@cooldown(3, 180, BucketType.user)
+	async def anime_quote(self, ctx):
+		quote_url = "https://some-random-api.ml/animu/quote"
+
+		async with request("GET", quote_url, headers=[]) as response:
+			if response.status == 200:
+				data = await response.json()
+
+				embed = Embed(title=f"Anime quote",
+							  description=data["sentence"],
+							  timestamp=datetime.utcnow(),
+							  color=ctx.author.color)
+				await ctx.send(embed=embed)
+
+
+			else:
+				await ctx.send(f"API returned a {response.status} status.")
+
+
+
 	@command(name="fact")
 	@cooldown(3, 180, BucketType.user)
 	async def animal_fact(self, ctx, animal: str):
-		if (animal := animal.lower()) in ("dog", "cat", "panda", "fox", "bird", "koala", "racoon", "kangaroo"):
+		if (animal := animal.lower()) in ("dog", "cat", "panda", "fox", "bird", "koala", "racoon", "kangaroo", "whale"):
 			fact_url = f"https://some-random-api.ml/facts/{animal.lower()}"
 			image_url = f"https://some-random-api.ml/img/{'birb' if animal == 'bird' else animal}"
 
@@ -143,6 +164,26 @@ class Fun(Cog):
 			member=member,
 			api="https://some-random-api.ml/animu/wink",
 			format="<author> winks to <member> " + " ".join(args))
+
+	@command(name="8ball")
+	async def roll_ball(self, ctx, *, message):
+		answer = ['As I see it, yes.', 'Ask again later.', 'Better not tell you now.', 'Cannot predict now.', 'Concentrate and ask again.', 'Don’t count on it.', 'It is certain.','It is decidedly so.', 'Most likely.', 'My reply is no.', 'My sources say no.', 'Outlook not so good.', 'Outlook good.', 'Reply hazy, try again.', 'Signs point to yes.', 'Very doubtful.', 'Without a doubt.', 'Yes.', 'Yes – definitely.', 'You may rely on it'] 
+				
+		embed = Embed(title="8Ball", timestamp= datetime.utcnow())
+
+
+		embed.add_field(name= "\u200b", value= f"**Message:** {message}", inline= True)
+		embed.add_field(name= "\u200b", value= f"**Answer:** {choice(answer)}", inline= False)         
+
+		await ctx.send(embed=embed)
+
+	@command(name="sep")
+	async def seperate(self, ctx, x, *, message):
+		await ctx.message.delete()
+		await ctx.send(message, sep=f'{x}')
+
+
+
 
 
 

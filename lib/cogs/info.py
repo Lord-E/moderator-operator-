@@ -5,6 +5,11 @@ from discord import Member, Spotify, Embed, ClientUser
 from discord.ext.commands import Cog
 from discord.ext.commands import command, has_permissions
 
+from discord.ext.commands import Cog, Greedy, Converter
+from discord.ext.commands import CheckFailure, BadArgument
+from discord.ext.commands import command, has_permissions, bot_has_permissions
+from discord.ext.commands import MissingPermissions
+
 class Info(Cog):
 	def __init__(self, bot):
 		self.bot = bot
@@ -38,6 +43,11 @@ class Info(Cog):
 		
 		await ctx.send(embed=embed)
 
+	@user_info.error
+	async def user_info_error(self, ctx, exc):
+		if isinstance(exc, CheckFailure):
+			await ctx.send("Insufficient permissions to perform that task.")
+
 
 	@command(name="avatar", aliases=["avi", "pfp", "profilepicture"] )
 	@has_permissions(manage_guild=True)
@@ -56,7 +66,7 @@ class Info(Cog):
 		for name, value, inline in fields:
  			embed.add_field(name=name, value=value, inline=inline)
  			embed.set_image(url=target.avatar_url)
- 			embed.set_footer(text=f"Requested by {ctx.author}", url=ctx.author.avatar_url)
+ 			embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.avatar_url)
 		
 		await ctx.send(embed=embed)
 

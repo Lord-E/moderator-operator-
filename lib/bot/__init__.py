@@ -9,7 +9,7 @@ from discord import Embed, File
 from discord.errors import HTTPException, Forbidden 
 from discord.ext.commands import Bot as BotBase
 from discord.ext.commands import Context
-from discord.ext.commands import (CommandNotFound, BadArgument, MissingRequiredArgument, CommandOnCooldown)
+from discord.ext.commands import (CommandNotFound, BadArgument, MissingRequiredArgument, CommandOnCooldown,  MissingPermissions)
 
 from discord.ext.commands import when_mentioned_or, command, has_permissions 
 
@@ -107,36 +107,29 @@ class Bot(BotBase):
         await self.stdout.send("`An error occured.`")
         raise
 
-
     async def on_command_error(self, ctx, exc):
-        if any([isinstance( exc, error) for error in IGNORE_EXCEPTIONS]):
+        if any([isinstance(exc, error) for error in IGNORE_EXCEPTIONS]):
             pass
-            
+
         elif isinstance(exc, MissingRequiredArgument):
-            await ctx.send("One or more arguments are missing")
+            await ctx.send("One or more required arguments are missing.")
 
         elif isinstance(exc, CommandOnCooldown):
-            embed = Embed(title="2, 4, 6, 8, you should really decelerate", color=ctx.author.color, timestamp= datetime.utcnow())
-            fields = [(( "\u200b"), ( f"That command in on `{str(exc.cooldown.type).split('.')[-1]}` cooldown. Try again in `{exc.retry_after:,.2f}` secs."), True)]
-            
-            for name, value, inline in fields:
-                embed.add_field(name=name, value=value, inline=True)            
-            await self.stdout.send(embed=embed)
-            
+            await ctx.send(f"That command is on {str(exc.cooldown.type).split('.')[-1]} cooldown. Try again in {exc.retry_after:,.2f} secs.")
+
+        elif isinstance(exc,  MissingPermissions):
+            await ctx.send(f"You dont have the perms for that")
 
         elif hasattr(exc, "original"):
 
-        # elif isinstance(exc.original, HTTPException):
-        #     await ctx.send("Unable to send message.")
-
             if isinstance(exc.original, Forbidden):
-                await ctx.send("Unable to send message.")
+                await ctx.send("I do not have permission to do that.")
 
             else:
                 raise exc.original
-            
+
         else:
-            raise exc
+            raise exc         
 
 
     async def on_ready(self):

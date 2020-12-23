@@ -21,7 +21,7 @@ class Welcome(Cog):
 		try:
 			await member.send("Subcribe to Elevator Operator\n https://www.youtube.com/channel/UC-E4Tpi9nVMIH-S_cJcoPIQ")
 
-		except Forbidden:
+		except:
 			pass
 
 		await member.add_roles(member.guild.get_role(788562239958810635))
