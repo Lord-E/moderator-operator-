@@ -1,9 +1,9 @@
-from random import choice, randint
+from random import choice, randint, random
 from typing import Optional
 
 
 from aiohttp import request
-from discord import Member, Embed, File
+from discord import Member, Embed, File, Message
 from discord.ext.commands import Cog, BucketType
 from discord.ext.commands import BadArgument 
 from discord.ext.commands import command, cooldown
@@ -19,7 +19,12 @@ class Fun(Cog):
 	async def say_hello(self, ctx):
 		await ctx.send(f"{choice(('Hello', 'Hi', 'Hey'))} {ctx.author.mention}!")
 
-	@command(name="shoot", aliases=["kill"])
+	@command(name="flip", aliases=["headsortails"], brief= "Say hi to me")
+	async def flip(self, ctx):
+		await ctx.send(f"{choice(('Heads', 'Tails'))}")
+
+
+	@command(name="shoot")
 	@cooldown(6, 60, BucketType.user)
 	async def shoot_member(self, ctx, member: Member):
 		await ctx.send(f"{ctx.author.name} fired at {member.mention} and {choice(('hit them', 'missed them'))}")
@@ -62,8 +67,6 @@ class Fun(Cog):
             )
 		except discord.HTTPException:
 			return await ctx.send("Failed to create webhook.")
-		except discord.Forbidden:
-			return await ctx.send("I do not have permissions to manage webhooks.")
         
 		await ctx.message.delete()
 		await wb.send(" ".join(args))
@@ -82,6 +85,26 @@ class Fun(Cog):
 							  description=data["sentence"],
 							  timestamp=datetime.utcnow(),
 							  color=ctx.author.color)
+				await ctx.send(embed=embed)
+
+
+			else:
+				await ctx.send(f"API returned a {response.status} status.")
+
+	@command(name="facepalm")
+	@cooldown(3, 180, BucketType.user)
+	async def face_palm(self, ctx):
+		face_url = "https://some-random-api.ml/animu/face-palm"
+
+		async with request("GET", face_url, headers=[]) as response:
+			if response.status == 200:
+				data = await response.json()
+				face_url = data["link"]
+
+				embed = Embed(title=f"{ctx.author} facepalms",							  
+							  timestamp=datetime.utcnow(),
+							  color=ctx.author.color)
+				embed.set_image(url=face_url)
 				await ctx.send(embed=embed)
 
 
@@ -176,16 +199,6 @@ class Fun(Cog):
 		embed.add_field(name= "\u200b", value= f"**Answer:** {choice(answer)}", inline= False)         
 
 		await ctx.send(embed=embed)
-
-	@command(name="sep")
-	async def seperate(self, ctx, x, *, message):
-		await ctx.message.delete()
-		await ctx.send(message, sep=f'{x}')
-
-
-
-
-
 
 	@Cog.listener()
 	async def on_ready(self):
