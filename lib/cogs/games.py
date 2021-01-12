@@ -97,10 +97,29 @@ class Games(Cog):
 			await ctx.send("Draw")  
 
 
-	# @command(name="rps")
-	# async def rock_paper_scissors(self, ctx, choises):
-	# 	choises = [rock, paper, scissors]
-	# 	choise = await self.bot.wait_for("message", check=lambda m: m.author == ctx.author and self.ctx.message = choises)
+	@command(name="rps")
+	async def rock_paper_scissors(self, ctx):
+		objects = ['rock', 'paper', 'scissors']
+		self.rps_running = True
+
+		
+		def check(m):
+			m.author == ctx.author 
+
+		while self.rps_running:
+			try:
+				choise = await self.bot.wait_for("message", check= check, timeout= 30.0)
+			
+			except asyncio.TimeoutError:
+				return await ctx.send(f"Too slow. Try to answer faster.")
+
+			computer = choice(objects)
+
+			await ctx.send(f"You chosen {choise}, I've chosen {objects}")
+
+			
+
+
 
 
 

@@ -64,10 +64,10 @@ class Fun(Cog):
 			wb = await ctx.channel.create_webhook( 
 				name=str(member)[:-5], 
 				avatar=requests.get(member.avatar_url).content
-            )
+			)
 		except discord.HTTPException:
 			return await ctx.send("Failed to create webhook.")
-        
+		
 		await ctx.message.delete()
 		await wb.send(" ".join(args))
 		await wb.delete(reason="Mimic Webhook Deleted")
@@ -198,6 +198,26 @@ class Fun(Cog):
 		embed.add_field(name= "\u200b", value= f"**Message:** {message}", inline= True)
 		embed.add_field(name= "\u200b", value= f"**Answer:** {choice(answer)}", inline= False)         
 
+		await ctx.send(embed=embed)
+
+	@command(name="sep")
+	@cooldown(5, 60, BucketType.user)
+	async def seperate(self, ctx, x, *, message):
+		if len(message) > 150:
+			await ctx.send("150 charactors maximum to reduce spam")
+
+		else:		
+			message = message.split(" ")
+			await ctx.send(f" {x} ".join(message))
+
+	@command(name="ranper")
+	async def random_percent(self, ctx):
+			
+		embed = Embed(color=0xB8821F, timestamp= datetime.utcnow())
+
+
+		embed.add_field(name="Percetometer", value=f"{randint(1, 100)}%", inline=False)  
+		
 		await ctx.send(embed=embed)
 
 	@Cog.listener()

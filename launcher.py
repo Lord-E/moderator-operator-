@@ -1,6 +1,6 @@
 from lib.bot import bot
 
-VERSION = "15/42"
+VERSION = "Escalator Operator"
 
 bot.run(VERSION)
            

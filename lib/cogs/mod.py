@@ -1,6 +1,8 @@
 from asyncio import sleep
 from datetime import datetime, timedelta
 from typing import Optional
+
+from better_profanity import profanity
 from discord.errors import HTTPException, Forbidden 
 from discord import Embed, Member, NotFound, Object
 from discord.utils import find
@@ -10,6 +12,8 @@ from discord.ext.commands import command, has_permissions, bot_has_permissions
 from discord.ext.commands import MissingPermissions
 
 from ..db import db
+
+profanity.load_censor_words_from_file("./data/profanity.txt")
 
 class Mod(Cog):
 	def __init__(self, bot):
@@ -148,14 +152,45 @@ class Mod(Cog):
 
 			await ctx.send(f"{target.display_name} was muted.")
 
-	# 		if len(unmutes):
-	# 			await sleep(hours)
-	# 			await self.unmute(ctx, target)
+			if len(unmutes):
+				await sleep(hours)
+				await self.unmute(ctx, targets)
 
-	# async def unmute(ctx, targets):
-	# 	pass
+	async def unmute(self, ctx, targets, *, reason="Mute time expired."):
+		for target in targets:
+			if self.mute_role in target.roles:
+				role_ids = db.field("SELECT RoleIDs FROM mutes WHERE UserID = ?", target.id)
+				roles = [ctx.guild.get_role(int(id_)) for id_ in role_ids.split(",") if len(id_)]
 
-	# @command(name="unmute")
+				db.execute("DELETE FROM mutes WHERE UserID = ?", target.id)
+
+				await target.edit(roles=roles)
+				
+				embed = Embed(title="Member unmuted",
+								colour=0xDD2222,
+								timestamp=datetime.utcnow())
+
+				embed.set_thumbnail(url=target.avatar_url)
+
+				fields = [("Member", f"{target.name} a.k.a. {target.display_name}", False),
+							("Reason", reason, False)]
+
+				for name, value, inline in fields:
+					embed.add_field(name=name, value=value, inline=inline)
+
+				await self.log_channel.send(embed=embed)
+
+
+	@command(name="unmute")
+	@bot_has_permissions(kick_members=True)
+	@has_permissions(kick_members=True)
+	async def unmute_command(self, ctx, targets: Greedy[Member], *, reason: Optional[str] = "No reason provided."):		
+		if not len(targets):
+			await ctx.send("Please specify a member to unmute.")
+
+		else:
+			await self.unmute(ctx, targets, reason=reason)
+
 	
 
 
@@ -164,8 +199,15 @@ class Mod(Cog):
 	async def on_ready(self):
 		if not self.bot.ready:
 			self.log_channel = self.bot.get_channel(788905081704939550)
+			self.mail_channel = self.bot.get_channel(794040379791114250)
 			self.mute_role = self.bot.guild.get_role(788562237434232876)
 			self.bot.cogs_ready.ready_up("mod")
+
+	@Cog.listener()
+	async def on_message(self, message):
+		if profanity.contains_profanity(message.content):
+			await message.delete()
+			await message.channel.send("You cant say that.")
 
 def setup(bot):
 	bot.add_cog(Mod(bot))
