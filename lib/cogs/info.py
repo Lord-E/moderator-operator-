@@ -50,7 +50,6 @@ class Info(Cog):
 
 
 	@command(name="avatar", aliases=["avi", "pfp", "profilepicture"] )
-	@has_permissions(manage_guild=True)
 	async def user_piture(self, ctx, target: Optional[Member], ):
 		target = target or ctx.author
 
@@ -130,6 +129,8 @@ class Info(Cog):
  			embed.set_thumbnail(url=ctx.guild.icon_url)
 		
 		await ctx.send(embed=embed)
+
+	
 
 
 

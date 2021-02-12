@@ -1,7 +1,8 @@
 import asyncio
 from typing import Optional
 
-from random import choice, random
+import random as rand
+from random import choice, randint
 from aiohttp import request
 from discord import Member, Embed, File, Message
 from discord.ext.commands import Cog
@@ -25,7 +26,7 @@ class Games(Cog):
 
 	@command(name="numguess", aliases=["ng"], brief="Guess a number\n Credit: Xhiro#0177")
 	async def number_guessing(self, ctx, x: int = 1, y: int = 100):
-		key = random.randint(x, y)
+		key = rand.randint(x, y)
 
 		self.number_guessing_running = True
 		guesses = guess_max = 10
@@ -55,7 +56,7 @@ class Games(Cog):
 	async def yaht(self, ctx):
 		dice = [0,0,0,0,0]
 		for i in range(5):
-			dice[i] = random.randint(1, 6)
+			dice[i] = rand.randint(1, 6)
 		await ctx.send(f"You rolled: {dice}")
 
 		dice.sort()
@@ -97,26 +98,26 @@ class Games(Cog):
 			await ctx.send("Draw")  
 
 
-	@command(name="rps")
-	async def rock_paper_scissors(self, ctx):
-		objects = ['rock', 'paper', 'scissors']
-		self.rps_running = True
+
+	# @command(name="rps")
+	# async def rock_paper_scissors(self, ctx):
+	# 	ob = ['Rock', 'Paper', 'Scissors']
+	# 	my_pick = choice(ob)
+
+	# 	self.rps_running = True
+	# 	await ctx.send("Respond with `Rock`, `Paper`, or `Scissors`!")
+
+
+
+	# 	try:
+	# 		your_pick = await self.bot.wait_for('message', check=lambda message: message.author ==  ctx.author, timeout=15.0)
+	# 		await ctx.send(my_pick)
+
+	# 	except asyncio.TimeoutError:
+	# 		return await ctx.send(f"Too slow.")
+	# 	# while self.rps_running = True:
 
 		
-		def check(m):
-			m.author == ctx.author 
-
-		while self.rps_running:
-			try:
-				choise = await self.bot.wait_for("message", check= check, timeout= 30.0)
-			
-			except asyncio.TimeoutError:
-				return await ctx.send(f"Too slow. Try to answer faster.")
-
-			computer = choice(objects)
-
-			await ctx.send(f"You chosen {choise}, I've chosen {objects}")
-
 			
 
 
@@ -130,3 +131,5 @@ class Games(Cog):
 
 def setup(bot):
 	bot.add_cog(Games(bot))
+
+	

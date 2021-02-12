@@ -1,11 +1,11 @@
 from random import choice, randint, random
 from typing import Optional
 
-
+from RandomWordGenerator import RandomWord
 from aiohttp import request
 from discord import Member, Embed, File, Message
 from discord.ext.commands import Cog, BucketType
-from discord.ext.commands import BadArgument 
+from discord.ext.commands import BadArgument
 from discord.ext.commands import command, cooldown
 import json
 from datetime import datetime
@@ -25,7 +25,7 @@ class Fun(Cog):
 
 
 	@command(name="shoot")
-	@cooldown(6, 60, BucketType.user)
+	@cooldown(3, 60, BucketType.user)
 	async def shoot_member(self, ctx, member: Member):
 		await ctx.send(f"{ctx.author.name} fired at {member.mention} and {choice(('hit them', 'missed them'))}")
 
@@ -40,7 +40,8 @@ class Fun(Cog):
 			await ctx.send(" + ".join([str(r) for r in rolls]) + f" = {sum(rolls)}")
 
 		else:
-			await ctx.send("Dice is greater then 25, please choose a smaller number")
+			await ctx.send("Dice is greater than 25, please choose a smaller number")
+
 
 	@command(name="slap", aliases=["hit"])
 	async def slap_member(self, ctx, member: Member, *, reason: Optional[str] = "for no reason"):
@@ -57,6 +58,18 @@ class Fun(Cog):
 	async def echo_message(self, ctx, *, message):
 		await ctx.message.delete()
 		await ctx.send(message)
+
+	@command(name="spam")
+	@cooldown(3, 180, BucketType.user)
+	async def spammer(self, ctx, x, *, message):
+		w = int(x)
+		if w > 7:
+			await ctx.send("I can only spam a maximum of 7 times")
+		
+		else:
+			y = range(w)
+			for i in y:
+				await ctx.send(message)
 
 	@command(name="mimic", aliases=["copy"])
 	async def mimic(self, ctx, member: Member, *args):
@@ -168,6 +181,7 @@ class Fun(Cog):
 
 
 	@command(name= "pat")
+	@cooldown(3, 180, BucketType.user)
 	async def pat_member(self, ctx, member: discord.Member, *args):
 		await self.emotion_base(ctx,
 		member=member,
@@ -175,6 +189,7 @@ class Fun(Cog):
 			format="<author> pats <member> " + " ".join(args))
 
 	@command(name="hug")
+	@cooldown(3, 180, BucketType.user)
 	async def hug_member(self, ctx, member: discord.Member, *args):
 		await self.emotion_base(ctx,
 			member=member,
@@ -182,6 +197,7 @@ class Fun(Cog):
 			format="<author> hugs <member> " + " ".join(args))
 
 	@command(name= "wink")
+	@cooldown(3, 180, BucketType.user)
 	async def wink_member(self, ctx, member: discord.Member, *args):
 		await self.emotion_base(ctx,
 			member=member,
@@ -219,6 +235,16 @@ class Fun(Cog):
 		embed.add_field(name="Percetometer", value=f"{randint(1, 100)}%", inline=False)  
 		
 		await ctx.send(embed=embed)
+
+	@command(name="random", aliases=['rand'])
+	async def ran_word(self, ctx):
+		rw = RandomWord(max_word_size=15,
+				constant_word_size=True,
+				special_chars=r"@#$%.*",
+				include_special_chars=True)
+
+		await ctx.send(rw.generate())
+
 
 	@Cog.listener()
 	async def on_ready(self):

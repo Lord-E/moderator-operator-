@@ -181,7 +181,7 @@ class Mod(Cog):
 				await self.log_channel.send(embed=embed)
 
 
-	@command(name="unmute")
+	@command(name="unmute", aliases=["um"])
 	@bot_has_permissions(kick_members=True)
 	@has_permissions(kick_members=True)
 	async def unmute_command(self, ctx, targets: Greedy[Member], *, reason: Optional[str] = "No reason provided."):		
@@ -191,6 +191,19 @@ class Mod(Cog):
 		else:
 			await self.unmute(ctx, targets, reason=reason)
 
+	@command(name="addprofanity", aliases=["as", "addcurse"])
+	@has_permissions(manage_guild=True)
+	async def add_profanity(self, ctx, *words):
+		with open("./data/profanity.txt", "a", encoding="utf-8") as f:
+			f.write("".join({f"{w}\n" for w in words}))
+
+		await ctx.send("Word was added to profanity list")
+
+
+	@command(name="delprofanity", aliases=["ds", "removecurse"])
+	@has_permissions(manage_guild=True)
+	async def add_profanity(self, ctx, *words):
+		pass
 	
 
 
@@ -205,9 +218,11 @@ class Mod(Cog):
 
 	@Cog.listener()
 	async def on_message(self, message):
-		if profanity.contains_profanity(message.content):
-			await message.delete()
-			await message.channel.send("You cant say that.")
+		if not message.author.bot:
+			if profanity.contains_profanity(message.content):
+				await message.delete()
+				await message.channel.send("`censored`")
+
 
 def setup(bot):
 	bot.add_cog(Mod(bot))
