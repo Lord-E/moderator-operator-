@@ -2,3 +2,5 @@
 *.db-journal
 __pycache__
 lib/bot/token.0
+data/profanity.txt
+data/rules.txt

@@ -1,6 +1,7 @@
 from random import choice, randint, random
 from typing import Optional
 
+from better_profanity import profanity
 from RandomWordGenerator import RandomWord
 from aiohttp import request
 from discord import Member, Embed, File, Message
@@ -22,7 +23,6 @@ class Fun(Cog):
 	@command(name="flip", aliases=["headsortails"], brief= "Say hi to me")
 	async def flip(self, ctx):
 		await ctx.send(f"{choice(('Heads', 'Tails'))}")
-
 
 	@command(name="shoot")
 	@cooldown(3, 60, BucketType.user)
@@ -55,8 +55,13 @@ class Fun(Cog):
 	@command(name="echo", aliases=["say"])
 	@cooldown(1, 60, BucketType.user)
 	async def echo_message(self, ctx, *, message):
-		await ctx.message.delete()
-		await ctx.send(message)
+		profanity.load_censor_words_from_file("./data/profanity.txt")
+		if profanity.contains_profanity(message):
+			await ctx.send("I cant say that")
+
+		else:
+			await ctx.message.delete()
+			await ctx.send(message)
 
 	@command(name="spam")
 	@cooldown(3, 180, BucketType.user)
@@ -71,18 +76,23 @@ class Fun(Cog):
 				await ctx.send(message)
 
 	@command(name="mimic", aliases=["copy"])
-	async def mimic(self, ctx, member: Member, *args):
-		try:
-			wb = await ctx.channel.create_webhook( 
-				name=str(member)[:-5], 
-				avatar=requests.get(member.avatar_url).content
-			)
-		except discord.HTTPException:
-			return await ctx.send("Failed to create webhook.")
-		
-		await ctx.message.delete()
-		await wb.send(" ".join(args))
-		await wb.delete(reason="Mimic Webhook Deleted")
+	async def mimic(self, ctx, member: Member, *args):	
+		profanity.load_censor_words_from_file("./data/profanity.txt")
+		if profanity.contains_profanity(args):
+			await ctx.send("I cant say that")
+
+		else:
+			try:
+				wb = await ctx.channel.create_webhook( 
+					name=str(member)[:-5], 
+					avatar=requests.get(member.avatar_url).content
+				)
+			except discord.HTTPException:
+				return await ctx.send("Failed to create webhook.")
+			
+			await ctx.message.delete()
+			await wb.send(" ".join(args))
+			await wb.delete(reason="Mimic Webhook Deleted")
 
 	@command(name="quote")
 	@cooldown(3, 180, BucketType.user)
