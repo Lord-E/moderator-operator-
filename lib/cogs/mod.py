@@ -191,20 +191,37 @@ class Mod(Cog):
 		else:
 			await self.unmute(ctx, targets, reason=reason)
 
-	@command(name="addprofanity", aliases=["as", "addcurse"])
+	@command(name="addprofanity", aliases=["addswears", "addcurses"])
 	@has_permissions(manage_guild=True)
 	async def add_profanity(self, ctx, *words):
 		with open("./data/profanity.txt", "a", encoding="utf-8") as f:
-			f.write("".join({f"{w}\n" for w in words}))
+			f.write("".join([f"{w}\n" for w in words]))
 
-		await ctx.send("Word was added to profanity list")
+		await ctx.send("Word added.")
+		profanity.load_censor_words_from_file("./data/profanity.txt")
 
-
-	@command(name="delprofanity", aliases=["ds", "removecurse"])
+	@command(name="delprofanity", aliases=["delswears", "delcurses"])
 	@has_permissions(manage_guild=True)
-	async def add_profanity(self, ctx, *words):
-		pass
+	async def remove_profanity(self, ctx, *words):
+		with open("./data/profanity.txt", "r", encoding="utf-8") as f:
+			stored = [w.strip() for w in f.readlines()]
+
+		with open("./data/profanity.txt", "w", encoding="utf-8") as f:
+			f.write("".join([f"{w}\n" for w in stored if w not in words]))
+		
+		profanity.load_censor_words_from_file("./data/profanity.txt")
+		
+		await ctx.send("Word deleted.")
 	
+	@command(name="prolist", aliases=["ps", "spillpro"])
+	@has_permissions(manage_guild=True)
+	async def spill_profanity(self, ctx):
+		profanity.load_censor_words_from_file("./data/profanity.txt")
+		a_file = open("./data/profanity.txt")
+
+		lines = a_file.readlines()
+		for line in lines:
+			await ctx.send(line)
 
 
 
@@ -221,7 +238,7 @@ class Mod(Cog):
 		if not message.author.bot:
 			if profanity.contains_profanity(message.content):
 				await message.delete()
-				await message.channel.send("`censored`")
+				await message.channel.send("`censored`", delete_after=10)
 
 
 def setup(bot):

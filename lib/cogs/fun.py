@@ -29,7 +29,6 @@ class Fun(Cog):
 	async def shoot_member(self, ctx, member: Member):
 		await ctx.send(f"{ctx.author.name} fired at {member.mention} and {choice(('hit them', 'missed them'))}")
 
-
 	@command(name="dice", aliases=["roll"])
 	async def roll_dice(self, ctx, die_string: str):
 		dice, value = (int(term) for term in die_string.split("d"))
