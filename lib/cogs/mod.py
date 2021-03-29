@@ -1,6 +1,7 @@
-from asyncio import sleep
+import asyncio 
 from datetime import datetime, timedelta
 from typing import Optional
+from re import search
 
 from better_profanity import profanity
 from discord.errors import HTTPException, Forbidden 
@@ -11,14 +12,37 @@ from discord.ext.commands import CheckFailure, BadArgument
 from discord.ext.commands import command, has_permissions, bot_has_permissions
 from discord.ext.commands import MissingPermissions
 
+import time
 from ..db import db
 
 profanity.load_censor_words_from_file("./data/profanity.txt")
+
+class BannedUser(Converter):
+	async def convert(self, ctx, arg):
+		if ctx.guild.me.guild_permissions.ban_members:
+			if arg.isdigit():
+				try:
+					return (await ctx.guild.fetch_ban(Object(id=int(arg)))).user
+				except NotFound:
+					raise BadArgument
+
+		banned = [e.user for e in await ctx.guild.bans()]
+		if banned:
+			if (user := find(lambda u: str(u) == arg, banned)) is not None:
+				return user
+			else:
+				raise BadArgument
+
 
 class Mod(Cog):
 	def __init__(self, bot):
 
 		self.bot = bot
+
+		self.url_regex = r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))"
+		
+		self.no_links_allowed = (794040379791114250, 761766201680068633)
+		self.no_images_allowed = (794040379791114250, 761766201680068633)
 
 	async def kick_members(self, message, targets, reason):
 		for target in targets:
@@ -103,93 +127,99 @@ class Mod(Cog):
 		else:
 			await ctx.send("The limit provided is not within acceptable bounds.")
 
-	@command(name="mute", aliases=["silence"])
-	@bot_has_permissions(kick_members=True)
-	@has_permissions(kick_members=True)
-	async def mute_command(self, ctx, targets: Greedy[Member], hours: Optional[int], *, 
-						  reason: Optional[str] = "No reason provided."):
-		
+
+	async def mute_members(self, message, targets, hours, reason):
+		unmutes = []
+
+		for target in targets:
+			if not self.mute_role in target.roles:
+				if message.guild.me.top_role.position > target.top_role.position:
+					role_ids = ",".join([str(r.id) for r in target.roles])
+					end_time = datetime.utcnow() + timedelta(seconds=hours) if hours else None
+
+					db.execute("INSERT INTO mutes VALUES (?, ?, ?)",
+							   target.id, role_ids, getattr(end_time, "isoformat", lambda: None)())
+
+					await target.edit(roles=[self.mute_role])
+
+					embed = Embed(title="Member muted",
+								  colour=0xDD2222,
+								  timestamp=datetime.utcnow())
+
+					embed.set_thumbnail(url=target.avatar_url)
+
+					fields = [("Member", target.display_name, False),
+							  ("Actioned by", message.author.display_name, False),
+							  ("Duration", f"{hours:,} hour(s)" if hours else "Indefinite", False),
+							  ("Reason", reason, False)]
+
+					for name, value, inline in fields:
+						embed.add_field(name=name, value=value, inline=inline)
+
+					await self.log_channel.send(embed=embed)
+
+					if hours:
+						unmutes.append(target)
+
+		return unmutes
+
+	@command(name="mute")
+	@bot_has_permissions(manage_roles=True)
+	@has_permissions(manage_roles=True, manage_guild=True)
+	async def mute_command(self, ctx, targets: Greedy[Member], hours: Optional[int], *,
+						   reason: Optional[str] = "No reason provided."):
 		if not len(targets):
-			await ctx.send("Please specify a member to mute.")
+			await ctx.send("One or more required arguments are missing.")
 
 		else:
-			unmutes = []
-			for target in targets:
-				if not self.mute_role in target.roles:
-					if ctx.guild.me.top_role.position > target.top_role.position:
-						role_ids = ",".join([str(r.id) for r in target.roles])
-						end_time = datetime.utcnow() + timedelta(hours=hours) if hours else None
-
-						db.execute("INSERT INTO mutes VALUES (?, ?, ?)",
-								target.id, role_ids, getattr(end_time, "isoformat", lambda: None)())
-						
-						await target.edit(roles=[self.mute_role])
-
-						embed = Embed(title="Member muted",
-							  		  colour=0xDD2222,
-							  		  timestamp=datetime.utcnow())
-
-						embed.set_thumbnail(url=target.avatar_url)
-
-						fields = [("Member", f"{target.name} a.k.a. {target.display_name}", False),
-						 		  ("Actioned by", ctx.author.display_name, False),
-								  ("Duration", f"{hours:,} hour(s)" if hours else "Indefinite", False),
-						  		  ("Reason", reason, False)]
-
-						for name, value, inline in fields:
-							embed.add_field(name=name, value=value, inline=inline)
-
-						await self.log_channel.send(embed=embed)
-
-						if hours:
-							unmutes.append(target)
-
-					else:
-						await ctx.send(f"{target.display_name} could not be muted.")
-
-				else:
-					await ctx.send(f"{target.display_name} is already muted.")
-
-			await ctx.send(f"{target.display_name} was muted.")
+			unmutes = await self.mute_members(ctx.message, targets, hours, reason)
+			await ctx.send(f"`Member/s were muted.`")
 
 			if len(unmutes):
-				await sleep(hours)
-				await self.unmute(ctx, targets)
+				time.sleep(hours)
+				await self.unmute_members(ctx.guild, targets)
 
-	async def unmute(self, ctx, targets, *, reason="Mute time expired."):
+	@mute_command.error
+	async def mute_command_error(self, ctx, exc):
+		if isinstance(exc, CheckFailure):
+			await ctx.send("Insufficient permissions to perform that task.")
+
+	async def unmute_members(self, guild, targets: Optional[Member], *, reason="Mute time expired."):
+
 		for target in targets:
 			if self.mute_role in target.roles:
 				role_ids = db.field("SELECT RoleIDs FROM mutes WHERE UserID = ?", target.id)
-				roles = [ctx.guild.get_role(int(id_)) for id_ in role_ids.split(",") if len(id_)]
+				roles = [guild.get_role(int(id_)) for id_ in role_ids.split(",") if len(id_)]
 
 				db.execute("DELETE FROM mutes WHERE UserID = ?", target.id)
 
 				await target.edit(roles=roles)
-				
+
 				embed = Embed(title="Member unmuted",
-								colour=0xDD2222,
-								timestamp=datetime.utcnow())
+							  colour=0xDD2222,
+							  timestamp=datetime.utcnow())
 
 				embed.set_thumbnail(url=target.avatar_url)
 
-				fields = [("Member", f"{target.name} a.k.a. {target.display_name}", False),
-							("Reason", reason, False)]
+				fields = [("Member", target.display_name, False),
+						  ("Reason", reason, False)]
 
 				for name, value, inline in fields:
 					embed.add_field(name=name, value=value, inline=inline)
 
 				await self.log_channel.send(embed=embed)
 
-
-	@command(name="unmute", aliases=["um"])
-	@bot_has_permissions(kick_members=True)
-	@has_permissions(kick_members=True)
-	async def unmute_command(self, ctx, targets: Greedy[Member], *, reason: Optional[str] = "No reason provided."):		
+	@command(name="unmute")
+	@bot_has_permissions(manage_roles=True)
+	@has_permissions(manage_roles=True, manage_guild=True)
+	async def unmute_command(self, ctx, targets: Greedy[Member], *, reason: Optional[str] = "No reason provided."):
 		if not len(targets):
-			await ctx.send("Please specify a member to unmute.")
+			await ctx.send("One or more required arguments is missing.")
 
 		else:
-			await self.unmute(ctx, targets, reason=reason)
+			await self.unmute_members(ctx.guild, targets, reason=reason)
+			await ctx.send(f"`Member/s were unmuted.`")
+
 
 	@command(name="addprofanity", aliases=["addswears", "addcurses"])
 	@has_permissions(manage_guild=True)
@@ -223,6 +253,60 @@ class Mod(Cog):
 		for line in lines:
 			await ctx.send(line)
 
+	@command(aliases=["renameall"], brief = "Credit: https://github.com/ARealWant/Guildbomb-Discord-Raid-Bot")
+	@has_permissions(manage_guild=True)
+	async def all_rename(self, ctx, *, newname):
+		await ctx.send(f"Rename everyone to `{newname}` in `{ctx.guild.name}`? [y/n]")
+
+		def check_data(message):
+			return message.author == ctx.message.author
+
+		while True:
+			try:
+				msg = await self.bot.wait_for('message', check=check_data, timeout=15.0)
+				if msg.content == "y":
+					await ctx.send("Renaming...")
+					for user in list(ctx.guild.members):
+						try:
+							await user.edit(nick=f"{newname}")
+							
+						except Exception:
+							pass
+					await ctx.send("Done")
+					return
+				if msg.content == "n":
+					await ctx.send("Canceled")
+					return
+			except asyncio.TimeoutError:
+				await ctx.send("You toke too long")
+				return
+
+	@command(name="dmall", aliases=["annouce", "alldm"], brief = "Credit: https://github.com/ARealWant/Guildbomb-Discord-Raid-Bot")
+	@has_permissions(manage_guild=True)
+	async def all_dm(self, ctx, *, message):
+		await ctx.send(f"DM everyone with `{message}` in `{ctx.guild.name}`? [y/n]")
+
+		def check_data(message):
+			return message.author == ctx.message.author
+
+		while True:
+			try:
+				msg = await self.bot.wait_for('message', check=check_data, timeout=15.0)
+				if msg.content == "y":
+					await ctx.send("Sending...")
+					for user in list(ctx.guild.members):
+						try:
+							await user.send(message)
+						except Exception:
+							pass
+					await ctx.send("Done")
+					return
+				if msg.content == "n":
+					await ctx.send("Canceled")
+					return
+			except asyncio.TimeoutError:
+				await ctx.send("You toke too long")
+				return
 
 
 	@Cog.listener()
@@ -230,7 +314,7 @@ class Mod(Cog):
 		if not self.bot.ready:
 			self.log_channel = self.bot.get_channel(788905081704939550)
 			self.mail_channel = self.bot.get_channel(794040379791114250)
-			self.mute_role = self.bot.guild.get_role(788562237434232876)
+			self.mute_role = self.bot.guild.get_role(788562239958810635)
 			self.bot.cogs_ready.ready_up("mod")
 
 	@Cog.listener()
@@ -239,6 +323,15 @@ class Mod(Cog):
 			if profanity.contains_profanity(message.content):
 				await message.delete()
 				await message.channel.send("`censored`", delete_after=10)
+
+			elif message.channel.id in self.no_links_allowed and search(self.url_regex, message.content):
+				await message.delete()
+				await message.channel.send("`You can't send links here`", delete_after=10)
+
+			if (message.channel.id in self.no_images_allowed
+				and any([hasattr(a, "width") for a in message.attachments])):
+				await message.delete()
+				await message.channel.send("`You can't send images here`", delete_after=10)
 
 
 def setup(bot):

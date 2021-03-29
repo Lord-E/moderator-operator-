@@ -2,23 +2,23 @@ from asyncio import sleep
 from datetime import datetime
 from glob import glob
 
-from discord import Intents
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from discord import Embed, File, DMChannel
-from discord.errors import HTTPException, Forbidden, InvalidArgument 
+from discord.errors import HTTPException, Forbidden
 from discord.ext.commands import Bot as BotBase
 from discord.ext.commands import Context
-from discord.ext.commands import (CommandNotFound, BadArgument, MissingRequiredArgument, CommandOnCooldown,  MissingPermissions)
-
-from discord.ext.commands import when_mentioned_or, command, has_permissions 
+from discord.ext.commands import (CommandNotFound, BadArgument, MissingRequiredArgument,
+								  CommandOnCooldown, MissingPermissions)
+from discord.ext.commands import when_mentioned_or, command, has_permissions
+from discord import Intents 
 
 from ..db import db
 
-# PREFIX = "op."
 OWNER_IDS = [717486310566133844]
 COGS = [path.split("\\")[-1][:-3] for path in glob("./lib/cogs/*.py")]
 IGNORE_EXCEPTIONS = (CommandNotFound, BadArgument)
+
 
 def get_prefix(bot, message):
 	prefix = db.field("SELECT Prefix FROM guilds WHERE GuildID = ?", message.guild.id)
@@ -37,6 +37,7 @@ class Ready(object):
 	def all_ready(self):
 		return all([getattr(self, cog) for cog in COGS])
 
+
 class Bot(BotBase):
 	def __init__(self):
 		self.ready = False
@@ -45,32 +46,44 @@ class Bot(BotBase):
 		self.guild = None
 		self.scheduler = AsyncIOScheduler()
 
+		try:
+			with open("./data/banlist.txt", "r", encoding="utf-8") as f:
+				self.banlist = [int(line.strip()) for line in f.readlines()]
+		except FileNotFoundError:
+			self.banlist = []
 
 		db.autosave(self.scheduler)
 		super().__init__(command_prefix=get_prefix, owner_ids=OWNER_IDS, intents=Intents.all())
-
 
 	def setup(self):
 		for cog in COGS:
 			self.load_extension(f"lib.cogs.{cog}")
 			print(f" {cog} cog loaded")
-		
+
 		print("setup complete")
 
 	def update_db(self):
 		db.multiexec("INSERT OR IGNORE INTO guilds (GuildID) VALUES (?)",
-					((guild.id,) for guild in self.guilds))
+					 ((guild.id,) for guild in self.guilds))
 
 		db.multiexec("INSERT OR IGNORE INTO exp (UserID) VALUES (?)",
-					((member.id,) for guild in self.guilds for member in guild.members if not member.bot))
+					 ((member.id,) for member in self.guild.members if not member.bot))
+
+		to_remove = []
+		stored_members = db.column("SELECT UserID FROM exp")
+		for id_ in stored_members:
+			if not self.guild.get_member(id_):
+				to_remove.append(id_)
+
+		db.multiexec("DELETE FROM exp WHERE UserID = ?",
+					 ((id_,) for id_ in to_remove))
 
 		db.commit()
-
 
 	def run(self, version):
 		self.VERSION = version
 
-		print("running setup")
+		print("running setup...")
 		self.setup()
 
 		with open("./lib/bot/token.0", "r", encoding="utf-8") as tf:
@@ -83,15 +96,17 @@ class Bot(BotBase):
 		ctx = await self.get_context(message, cls=Context)
 
 		if ctx.command is not None and ctx.guild is not None:
-			if self.ready:
-				await self.invoke(ctx)
+			if message.author.id in self.banlist:
+				await ctx.send("You are banned from using commands.")
+
+			elif not self.ready:
+				await ctx.send("I'm not ready to receive commands. Please wait a few seconds.")
 
 			else:
-				await ctx.send("I'm not read to recieve commands. Please wait a few seconds.")
+				await self.invoke(ctx)
 
 	async def rules_reminder(self):
-		await self.stdout.send("You know the rules and so do I")
-
+		await self.stdout.send("Remember to adhere to the rules!")
 
 	async def on_connect(self):
 		print(" bot connected")
@@ -102,10 +117,15 @@ class Bot(BotBase):
 	async def on_error(self, err, *args, **kwargs):
 		if err == "on_command_error":
 			await args[0].send("Something went wrong.")
-			
+
+		try:
+
+			await self.stdout.send("An error occured.")
+			raise
+
+		except SyntaxError:
+			await self.stdout.send("``Syntax error``")
 		
-		await self.stdout.send("`An error occured.`")
-		raise
 
 	async def on_command_error(self, ctx, exc):
 		if any([isinstance(exc, error) for error in IGNORE_EXCEPTIONS]):
@@ -114,27 +134,24 @@ class Bot(BotBase):
 		elif isinstance(exc, MissingRequiredArgument):
 			await ctx.send("One or more required arguments are missing.")
 
+		elif isinstance(exc, MissingPermissions):
+			await ctx.send("You do not have permmission to use this command")
+
 		elif isinstance(exc, CommandOnCooldown):
 			await ctx.send(f"That command is on {str(exc.cooldown.type).split('.')[-1]} cooldown. Try again in {exc.retry_after:,.2f} secs.")
 
-		elif isinstance(exc,  MissingPermissions):
-			await ctx.send(f"You dont have the perms for that")
-
-
 		elif hasattr(exc, "original"):
+			# if isinstance(exc.original, HTTPException):
+			# 	await ctx.send("Unable to send message.")
 
 			if isinstance(exc.original, Forbidden):
 				await ctx.send("I do not have permission to do that.")
-
-			elif isinstance(exc.original, InvalidArgument):
-				await ctx.send(f"Try typing in the command again")
 
 			else:
 				raise exc.original
 
 		else:
-			raise exc         
-
+			raise exc
 
 	async def on_ready(self):
 		if not self.ready:
@@ -143,34 +160,34 @@ class Bot(BotBase):
 			self.scheduler.add_job(self.rules_reminder, CronTrigger(day_of_week=0, hour=12, minute=0, second=0))
 			self.scheduler.start()
 
-
-
 			self.update_db()
 
-			# embed = Embed(title="This is the title", description="Discription", 
-			#     color=0xB8821F, timestamp= datetime.utcnow())
-			# fields = [("True Name", "True Value", True),
-			#           ("True Name 2", "True Value 2", True),
-			#           ("False Name 3", "False Value 3", False)]
+			# embed = Embed(title="Now online!", description="Carberretta is now online.",
+			# 			  colour=0xFF0000, timestamp=datetime.utcnow())
+			# fields = [("Name", "Value", True),
+			# 		  ("Another field", "This field is next to the other one.", True),
+			# 		  ("A non-inline field", "This field will appear on it's own row.", False)]
 			# for name, value, inline in fields:
-			#     embed.add_field(name=name, value=value, inline=True)
-			#     embed.set_author(name="Author", icon_url=self.guild.icon_url)
-			#     embed.set_footer(text="Footer")
-			#     embed.set_thumbnail(url=self.guild.icon_url)
-			#     embed.set_image(url=self.guild.icon_url)            
+			# 	embed.add_field(name=name, value=value, inline=inline)
+			# embed.set_author(name="Carberra Tutorials", icon_url=self.guild.icon_url)
+			# embed.set_footer(text="This is a footer!")
 			# await channel.send(embed=embed)
 
-			# await channel.send(file=File("./data/images/giphy.gif"))
-			
-			while not self.cogs_ready.all_ready():
-				await sleep(0.5)            
+			# await channel.send(file=File("./data/images/profile.png"))
 
-			await self.stdout.send("`Bot online`")
+			while not self.cogs_ready.all_ready():
+				await sleep(0.5)
+
+			await self.stdout.send("Now online!")
 			self.ready = True
 			print(" bot ready")
 
+			# meta = self.get_cog("Meta")
+			# await meta.set()
+
 		else:
 			print("bot reconnected")
+
 
 	async def on_message(self, message):
 		if not message.author.bot:
@@ -184,23 +201,23 @@ class Bot(BotBase):
 				else:
 					member = self.guild.get_member(message.author.id)
 					embed = Embed(title="Modmail",
-								  colour=member.color,
+								  colour=0x03fcbe,
 								  timestamp=datetime.utcnow())
 
-					embed.set_thumbnail(url=member.avatar_url)
+					embed.set_thumbnail(url=member.avatar_url())
 
-					fields = [("Member", f"{member.display_name}#{member.discriminator}", False),
+					fields = [("Member", member.display_name, False),
 							  ("Message", message.content, False)]
 
 					for name, value, inline in fields:
 						embed.add_field(name=name, value=value, inline=inline)
-						embed.set_footer(text=f"User id {member.id}")
-
+					
 					mod = self.get_cog("Mod")
-					await mod.mail_channel.send(embed=embed)
-					await message.channel.send("Message delivered")
+					await mod.log_channel.send(embed=embed)
+					await message.channel.send("Message relayed to moderators.")
 
 			else:
 				await self.process_commands(message)
+
 
 bot = Bot()

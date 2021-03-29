@@ -4,13 +4,23 @@ from typing import Optional
 import random as rand
 from random import choice, randint
 from aiohttp import request
-from discord import Member, Embed, File, Message
+from discord import Member, Embed, File, Message, NotFound, Object
 from discord.ext.commands import Cog
 from discord.ext.commands import BadArgument 
 from discord.ext.commands import command, cooldown
-from datetime import datetime
+from datetime import datetime, timedelta
 import discord, requests
 
+from re import search
+
+from better_profanity import profanity
+from discord.errors import HTTPException, Forbidden 
+
+from discord.utils import find
+
+from discord.ext.commands import CheckFailure, BadArgument
+from discord.ext.commands import command, has_permissions, bot_has_permissions
+from discord.ext.commands import MissingPermissions
 class Games(Cog):
 	def __init__(self, bot):
 		self.bot = bot
@@ -99,23 +109,56 @@ class Games(Cog):
 
 
 
-	# @command(name="rps")
-	# async def rock_paper_scissors(self, ctx):
-	# 	ob = ['Rock', 'Paper', 'Scissors']
-	# 	my_pick = choice(ob)
-
-	# 	self.rps_running = True
-	# 	await ctx.send("Respond with `Rock`, `Paper`, or `Scissors`!")
+	@command(name="rps")
+	async def rock_paper_scissors(self, ctx):
+		ob = ['Rock', 'Paper', 'Scissors']
+		my_pick  = str(choice(ob))
+		await ctx.send("Respond with `Rock`, `Paper`, or `Scissors`!")
 
 
+		self.rps_running = True
+		try:
+			your_pick = str((await self.bot.wait_for("message", check=lambda m: m.author == ctx.author and m.content.strip(), timeout=15.0)).content.capitalize())
 
-	# 	try:
-	# 		your_pick = await self.bot.wait_for('message', check=lambda message: message.author ==  ctx.author, timeout=15.0)
-	# 		await ctx.send(my_pick)
+		except asyncio.TimeoutError:
+				return await ctx.send(f"Too slow.")
 
-	# 	except asyncio.TimeoutError:
-	# 		return await ctx.send(f"Too slow.")
-	# 	# while self.rps_running = True:
+		while self.rps_running == True:
+					
+			if your_pick == my_pick:
+				await ctx.send("Tie!")
+				self.rps_running = False 
+
+			elif your_pick == "Rock":
+				if my_pick == "Paper":
+					await ctx.send(f"You lose! {my_pick} covers {your_pick}")
+					self.rps_running = False 
+
+				else:
+					await ctx.send(f"You win! {your_pick} smashes {my_pick}")
+					self.rps_running = False 
+
+			elif your_pick == "Paper":
+				if my_pick == "Scissors":
+					await ctx.send(f"You lose! {my_pick} cuts {your_pick}")
+					self.rps_running = False 
+
+				else:
+					await ctx.send(f"You win! {your_pick} covers {my_pick}")
+					self.rps_running = False 
+
+			elif your_pick == "Scissors":
+				if my_pick == "Rock":
+					await ctx.send(f"You lose. {my_pick} smashes {your_pick}")
+					self.rps_running = False 
+
+				else:
+					await ctx.send(f"You win! {your_pick} cut {my_pick}")
+					self.rps_running = False 			
+
+
+
+
 
 		
 			

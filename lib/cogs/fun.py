@@ -1,6 +1,6 @@
 from random import choice, randint, random
 from typing import Optional
-
+import os
 from better_profanity import profanity
 from RandomWordGenerator import RandomWord
 from aiohttp import request
@@ -11,6 +11,8 @@ from discord.ext.commands import command, cooldown
 import json
 from datetime import datetime
 import discord, requests
+import aiohttp
+import io
 
 class Fun(Cog):
 	def __init__(self, bot):
@@ -23,6 +25,11 @@ class Fun(Cog):
 	@command(name="flip", aliases=["headsortails"], brief= "Say hi to me")
 	async def flip(self, ctx):
 		await ctx.send(f"{choice(('Heads', 'Tails'))}")
+
+	@command(name="magic")
+	async def magictrick(self, ctx):
+		await ctx.send("Screen shot this picture:")
+		await ctx.send("https://thispersondoesnotexist.com/image")
 
 	@command(name="shoot")
 	@cooldown(3, 60, BucketType.user)
@@ -75,24 +82,20 @@ class Fun(Cog):
 			for i in y:
 				await ctx.send(message)
 
-	@command(name="mimic", aliases=["copy"])
-	async def mimic(self, ctx, member: Member, *args):	
-		profanity.load_censor_words_from_file("./data/profanity.txt")
-		if profanity.contains_profanity(args):
-			await ctx.send("I cant say that")
-
-		else:
-			try:
-				wb = await ctx.channel.create_webhook( 
-					name=str(member)[:-5], 
-					avatar=requests.get(member.avatar_url).content
-				)
-			except discord.HTTPException:
-				return await ctx.send("Failed to create webhook.")
-			
-			await ctx.message.delete()
-			await wb.send(" ".join(args))
-			await wb.delete(reason="Mimic Webhook Deleted")
+	@command(name="mimic", aliases=["copy"], brief = "Credit: xhiro#(numbers)")
+	async def mimic(self, ctx, member: Member, *args):
+		
+		try:
+			wb = await ctx.channel.create_webhook( 
+				name=str(member)[:-5], 
+				avatar=requests.get(member.avatar_url).content
+			)
+		except discord.HTTPException:
+			return await ctx.send("Failed to create webhook.")
+		
+		await ctx.message.delete()
+		await wb.send(" ".join(args))
+		await wb.delete(reason="Mimic Webhook Deleted")
 
 	@command(name="quote")
 	@cooldown(3, 180, BucketType.user)
@@ -102,11 +105,41 @@ class Fun(Cog):
 		async with request("GET", quote_url, headers=[]) as response:
 			if response.status == 200:
 				data = await response.json()
+				sen = data["sentence"]
+				car = data["characther"]
+				ani = data["anime"]
 
 				embed = Embed(title=f"Anime quote",
-							  description=data["sentence"],
+							  description=f"{sen} \n by {car} from {ani}",
 							  timestamp=datetime.utcnow(),
 							  color=ctx.author.color)
+				await ctx.send(embed=embed)
+
+
+			else:
+				await ctx.send(f"API returned a {response.status} status.")
+
+	@command(name="meme")
+	@cooldown(3, 180, BucketType.user)
+	async def meme_quote(self, ctx):
+		meme_url = "https://some-random-api.ml/meme"
+
+		async with request("GET", meme_url, headers=[]) as response:
+			if response.status == 200:
+				data = await response.json()
+				meme_url = data["image"]
+				cap = data["caption"]
+				cat = data["category"]
+				di = data["id"]
+
+
+				embed = Embed(title=f"{cap}",
+							#   description=f"{eme} \n by {car} from {ani}",
+							  timestamp=datetime.utcnow(),
+							  color=ctx.author.color)
+				
+				embed.set_image(url=meme_url)
+				embed.set_footer(text=f"Category: {cat} | Id: {di}")
 				await ctx.send(embed=embed)
 
 
@@ -168,6 +201,184 @@ class Fun(Cog):
 
 		else:
 			await ctx.send("No facts are avilable for that animal.")
+		
+	@Cog.listener()
+	async def overlays(self, ctx, *, member: discord.Member=None, api: str, format: str):
+		if not member:
+			member = ctx.author
+				
+		wastedsession = aiohttp.ClientSession()
+		async with wastedsession.get(f"{api}?avatar={member.avatar_url_as(format='png')}") as img:
+			if img.status != 200:
+				await ctx.send("Unable to get image")
+				await wastedsession.close()      
+			else:
+				data = io.BytesIO(await img.read())
+				await ctx.send(file=discord.File(data, f'{format}.png'))
+			await wastedsession.close()
+
+	@command(name="wasted")
+	async def wasted_member(self, ctx, member: discord.Member=None):
+		if not member:
+			member = ctx.author
+
+		await self.overlays(ctx,
+			member=member, 
+			api="https://some-random-api.ml/canvas/wasted",
+			format= "wasted")
+
+	@command(name="gay")
+	async def gay_member(self, ctx, member: discord.Member=None):
+		if not member:
+			member = ctx.author
+
+		await self.overlays(ctx,
+			member=member, 
+			api="https://some-random-api.ml/canvas/gay",
+			format= "gay")
+
+	@command(name="glass")
+	async def glass_member(self, ctx, member: discord.Member=None):
+		if not member:
+			member = ctx.author
+
+		await self.overlays(ctx,
+			member=member, 
+			api="https://some-random-api.ml/canvas/glass",
+			format= "glass")
+
+	@command(name="jail")
+	async def jail_member(self, ctx, member: discord.Member=None):
+		if not member:
+			member = ctx.author
+
+		await self.overlays(ctx,
+			member=member, 
+			api="https://some-random-api.ml/canvas/jail",
+			format= "jail")
+
+	@command(name="invert")
+	async def invert_member(self, ctx, member: discord.Member=None):
+		if not member:
+			member = ctx.author
+
+		await self.overlays(ctx,
+			member=member, 
+			api="https://some-random-api.ml/canvas/invert",
+			format= "invert")
+
+
+	@command(name="blur")
+	async def blur_member(self, ctx, member: discord.Member=None):
+		if not member:
+			member = ctx.author
+
+		await self.overlays(ctx,
+			member=member, 
+			api="https://some-random-api.ml/canvas/blur",
+			format= "blur")
+	
+	@command(name="brightness")
+	async def brightness_member(self, ctx, member: discord.Member=None):
+		if not member:
+			member = ctx.author
+
+		await self.overlays(ctx,
+			member=member, 
+			api="https://some-random-api.ml/canvas/brightness",
+			format= "brightness")
+
+	@command(name="threshold")
+	async def threshold_member(self, ctx, member: discord.Member=None):
+		if not member:
+			member = ctx.author
+
+		await self.overlays(ctx,
+			member=member, 
+			api="https://some-random-api.ml/canvas/threshold",
+			format= "threshold")
+
+	@command(name="sepia")
+	async def sepia_member(self, ctx, member: discord.Member=None):
+		if not member:
+			member = ctx.author
+
+		await self.overlays(ctx,
+			member=member, 
+			api="https://some-random-api.ml/canvas/sepia",
+			format= "sepia")
+
+	@command(name="pixelate")
+	async def pixelate_member(self, ctx, member: discord.Member=None):
+		if not member:
+			member = ctx.author
+
+		await self.overlays(ctx,
+			member=member, 
+			api="https://some-random-api.ml/canvas/pixelate",
+			format= "pixelate")
+
+	@command(name="trigger")
+	async def tiger(self, ctx, *, member: discord.Member=None):
+		if not member:
+			member = ctx.author
+				
+		wastedsession = aiohttp.ClientSession()
+		async with wastedsession.get(f"https://some-random-api.ml/canvas/triggered/?avatar={member.avatar_url_as(format='png')}") as img:
+			if img.status != 200:
+				await ctx.send("Unable to get image")
+				await wastedsession.close()      
+			else:
+				data = io.BytesIO(await img.read())
+				await ctx.send(file=discord.File(data, f'triggered.gif'))
+			await wastedsession.close()
+
+	
+	@command(name="simp")
+	async def simply(self, ctx, *, member: discord.Member=None):
+		if not member:
+			member = ctx.author
+				
+		wastedsession = aiohttp.ClientSession()
+		async with wastedsession.get(f"https://some-random-api.ml/canvas/simpcard/?avatar={member.avatar_url_as(format='png')}") as img:
+			if img.status != 200:
+				await ctx.send("Unable to get image")
+				await wastedsession.close()      
+			else:
+				data = io.BytesIO(await img.read())
+				await ctx.send(file=discord.File(data, f'simpcard.png'))
+			await wastedsession.close()
+
+	@command(name="horny")
+	async def horm(self, ctx, *, member: discord.Member=None):
+		if not member:
+			member = ctx.author
+				
+		wastedsession = aiohttp.ClientSession()
+		async with wastedsession.get(f"https://some-random-api.ml/canvas/horny/?avatar={member.avatar_url_as(format='png')}") as img:
+			if img.status != 200:
+				await ctx.send("Unable to get image")
+				await wastedsession.close()      
+			else:
+				data = io.BytesIO(await img.read())
+				await ctx.send(file=discord.File(data, f'horny.png'))
+			await wastedsession.close()
+
+
+	@command(name="lolijail")
+	async def lolice(self, ctx, *, member: discord.Member=None):
+		if not member:
+			member = ctx.author
+				
+		wastedsession = aiohttp.ClientSession()
+		async with wastedsession.get(f"https://some-random-api.ml/canvas/lolice/?avatar={member.avatar_url_as(format='png')}") as img:
+			if img.status != 200:
+				await ctx.send("Unable to get image")
+				await wastedsession.close()      
+			else:
+				data = io.BytesIO(await img.read())
+				await ctx.send(file=discord.File(data, f'lolice.png'))
+			await wastedsession.close()
 
 	@Cog.listener()
 	async def emotion_base(self, ctx, *, member: discord.Member, api: str, format: str):
@@ -228,6 +439,7 @@ class Fun(Cog):
 	@command(name="sep")
 	@cooldown(5, 60, BucketType.user)
 	async def seperate(self, ctx, x, *, message):
+		await ctx.message.delete()
 		if len(message) > 150:
 			await ctx.send("150 charactors maximum to reduce spam")
 
@@ -254,12 +466,109 @@ class Fun(Cog):
 
 		await ctx.send(rw.generate())
 
+	@command(name="godzuki")
+	async def zuki(self, ctx):
+
+		path = choice(os.listdir("./data/images/godz/"))
+		await ctx.send(file=File(f"./data/images/godz/{path}"))
+
+	@command(name="owoify")
+	async def owoify(self, ctx, *, x):
+		await ctx.message.delete()
+		await ctx.send(x.lower().replace("l", "w").replace("r", "w").replace("s", "sh")+ " OwO")
+	
+	# @command(name="smol")
+	# async def smolify(self, ctx, *, x):
+	# 	await ctx.message.delete()
+	# 	await ctx.send(x.lower().replace("a", "\:regional_indicator_a:").replace("b", "\:regional_indicator_b:")
+	# 	.replace("c", "\:regional_indicator_c:").replace("d", "\:regional_indicator_d:").replace("e", "\:regional_indicator_e:")
+	# 	.replace("f", "\:regional_indicator_f:").replace("g", "\:regional_indicator_g:").replace("h", "\:regional_indicator_h:")
+	# 	.replace("i", "\:regional_indicator_i:").replace("j", "\:regional_indicator_j:").replace("k", "\:regional_indicator_k:")
+	# 	.replace("l", "\:regional_indicator_l:").replace("m", "\:regional_indicator_m:").replace("n", "\:regional_indicator_n:")
+	# 	.replace("o", "\:regional_indicator_o:").replace("p", "\:regional_indicator_p:").replace("q", "\:regional_indicator_q:")
+	# 	.replace("r", "\:regional_indicator_r:").replace("s", "\:regional_indicator_s:").replace("t", "\:regional_indicator_t:")
+	# 	.replace("u", "\:regional_indicator_u:").replace("v", "\:regional_indicator_v:").replace("w", "\:regional_indicator_w:")
+	# 	.replace("x", "\:regional_indicator_x:").replace("y", "\:regional_indicator_y:").replace("z", "\:regional_indicator_z:"))
+
+	@command(name="beer")
+	async def beerbrew(self, ctx):
+		await ctx.send(":beer:")
+
+	# @command(name="stupid")
+	# async def stup(self, ctx, *, member: discord.Member=None,  dog):
+	# 	if not member:
+	# 		member = ctx.author
+		
+	# 	wastedsession = aiohttp.ClientSession()
+	# 	async with wastedsession.get(f'https://some-random-api.ml/canvas/its-so-stupid/?avatar={member.avatar_url_as(format="png")}') as img:
+	# 		if img.status != 200:
+	# 			await ctx.send("Unable to get image")
+	# 			await wastedsession.close()
+	# 			data = await       
+	# 		else:
+	# 			dog = data["dog"]
+	# 			read = io.BytesIO(await img.read())
+
+	# 			await ctx.send(file=discord.File(read, f'its-so-stupid.png&{dog}'))
+	# 		await wastedsession.close()
+
+	
+	@command(name="binary")
+	@cooldown(3, 180, BucketType.user)
+	async def bian(self, ctx, *, text):
+		bi_url = f"https://some-random-api.ml/binary?text={text}"
+
+		async with request("GET", bi_url, headers=[]) as response:
+			if response.status == 200:
+				data = await response.json()
+				encode = data["binary"]
+
+
+			for chunk in [encode[i : i + 2000] for i in range(0, len(encode), 2000)]:
+				await ctx.send(chunk)
+
+	@command(name="decodebinary", aliases = ["deb"])
+	@cooldown(3, 180, BucketType.user)
+	async def debian(self, ctx, *, text):
+		bi_url = f"https://some-random-api.ml/binary?decode={text}"
+
+		async with request("GET", bi_url, headers=[]) as response:
+			if response.status == 200:
+				data = await response.json()
+				decode = data["text"]
+
+				await ctx.send(decode)
+
+
+	@command(name="time", aliases=["clock", "date"])
+	async def clocker(self, ctx):
+		now = datetime.now()
+		num = now.strftime("%I")
+
+		current_time = now.strftime("Date: %d:%A/%m:%B/%Y \nTime: %I hr:%M mins:%S secs %p \nDay %j out of 365 \nWeek %U out of 52 \nMonth %m out of 12")
+
+		embed = Embed(title = f"Time :clock{int(num)}:")
+					
+		fields = [("It is", current_time, False)]
+
+		for name, value, inline in fields:
+			embed.add_field(name=name, value=value, inline=inline)
+			
+		embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.avatar_url)
+
+		await ctx.send(embed=embed)
+
+
+
+
+
+
+
 
 	@Cog.listener()
 	async def on_ready(self):
 		if not self.bot.ready:
 			self.bot.cogs_ready.ready_up("fun")
-
 
 def setup(bot):
 	bot.add_cog(Fun(bot))
