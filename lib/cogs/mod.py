@@ -2,6 +2,7 @@ import asyncio
 from datetime import datetime, timedelta
 from typing import Optional
 from re import search
+import random
 
 from better_profanity import profanity
 from discord.errors import HTTPException, Forbidden 
@@ -122,7 +123,9 @@ class Mod(Cog):
 				deleted = await ctx.channel.purge(limit=limit, after=datetime.utcnow()-timedelta(days=14),
 												  check=_check)
 
-				await ctx.send(f"Deleted {len(deleted):,} messages.", delete_after=5)
+				mess = random.choice((f'Deleted {len(deleted):,} messages.', 'https://media.discordapp.net/attachments/671548572864479232/826261664856670208/1616478576067.png?width=328&height=566'))
+
+				await ctx.send(mess, delete_after=5)
 
 		else:
 			await ctx.send("The limit provided is not within acceptable bounds.")
@@ -256,57 +259,73 @@ class Mod(Cog):
 	@command(aliases=["renameall"], brief = "Credit: https://github.com/ARealWant/Guildbomb-Discord-Raid-Bot")
 	@has_permissions(manage_guild=True)
 	async def all_rename(self, ctx, *, newname):
-		await ctx.send(f"Rename everyone to `{newname}` in `{ctx.guild.name}`? [y/n]")
+		if ctx.author.id == 717486310566133844:
+			await ctx.send(f"Rename everyone to `{newname}` in `{ctx.guild.name}`? [y/n]")
 
-		def check_data(message):
-			return message.author == ctx.message.author
+			def check_data(message):
+				return message.author == ctx.message.author
 
-		while True:
-			try:
-				msg = await self.bot.wait_for('message', check=check_data, timeout=15.0)
-				if msg.content == "y":
-					await ctx.send("Renaming...")
-					for user in list(ctx.guild.members):
-						try:
-							await user.edit(nick=f"{newname}")
-							
-						except Exception:
-							pass
-					await ctx.send("Done")
+			while True:
+				try:
+					msg = await self.bot.wait_for('message', check=check_data, timeout=15.0)
+					if msg.content == "y":
+						await ctx.send("Renaming...")
+						for user in list(ctx.guild.members):
+							try:
+								await user.edit(nick=f"{newname}")
+								
+							except Exception:
+								pass
+						await ctx.send("Done")
+						return
+					if msg.content == "n":
+						await ctx.send("Canceled")
+						return
+				except asyncio.TimeoutError:
+					await ctx.send("You toke too long")
 					return
-				if msg.content == "n":
-					await ctx.send("Canceled")
-					return
-			except asyncio.TimeoutError:
-				await ctx.send("You toke too long")
-				return
 
 	@command(name="dmall", aliases=["annouce", "alldm"], brief = "Credit: https://github.com/ARealWant/Guildbomb-Discord-Raid-Bot")
 	@has_permissions(manage_guild=True)
 	async def all_dm(self, ctx, *, message):
-		await ctx.send(f"DM everyone with `{message}` in `{ctx.guild.name}`? [y/n]")
+		if ctx.author.id == 717486310566133844:
+			await ctx.send(f"DM everyone with `{message}` in `{ctx.guild.name}`? [y/n]")
 
-		def check_data(message):
-			return message.author == ctx.message.author
+			def check_data(message):
+				return message.author == ctx.message.author
 
-		while True:
-			try:
-				msg = await self.bot.wait_for('message', check=check_data, timeout=15.0)
-				if msg.content == "y":
-					await ctx.send("Sending...")
-					for user in list(ctx.guild.members):
-						try:
-							await user.send(message)
-						except Exception:
-							pass
-					await ctx.send("Done")
+			while True:
+				try:
+					msg = await self.bot.wait_for('message', check=check_data, timeout=15.0)
+					if msg.content == "y":
+						await ctx.send("Sending...")
+						for user in list(ctx.guild.members):
+							try:
+								await user.send(message)
+							except Exception:
+								pass
+						await ctx.send("Done")
+						return
+					if msg.content == "n":
+						await ctx.send("Canceled")
+						return
+				except asyncio.TimeoutError:
+					await ctx.send("You toke too long")
 					return
-				if msg.content == "n":
-					await ctx.send("Canceled")
-					return
-			except asyncio.TimeoutError:
-				await ctx.send("You toke too long")
-				return
+
+
+				
+	@command(name="dm")
+	async def dm(self, ctx, user: Member, *, message):
+		user = user or ctx.author
+		try:
+			await ctx.message.delete() 
+			await user.send(message)
+			await ctx.send("Message sent", delete_after=3)
+
+		except:
+			await ctx.send("Message failed to send", delete_after=3)
+
 
 
 	@Cog.listener()

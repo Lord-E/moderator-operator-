@@ -13,13 +13,15 @@ from datetime import datetime
 import discord, requests
 import aiohttp
 import io
+import praw
 
 class Fun(Cog):
 	def __init__(self, bot):
 		self.bot = bot
 
+
 	@command(name="hello", aliases=["hi"], brief= "Say hi to me")
-	async def say_hello(self, ctx):
+	async def say_hello(self, ctx): 
 		await ctx.send(f"{choice(('Hello', 'Hi', 'Hey'))} {ctx.author.mention}!")
 
 	@command(name="flip", aliases=["headsortails"], brief= "Say hi to me")
@@ -84,13 +86,18 @@ class Fun(Cog):
 
 	@command(name="mimic", aliases=["copy"], brief = "Credit: xhiro#(numbers)")
 	async def mimic(self, ctx, member: Member, *args):
+		if str(member.nick) == "None":
+			name = str(member)[:-5]
+		else:
+			name = str(member.nick)
+
 		
 		try:
 			wb = await ctx.channel.create_webhook( 
-				name=str(member)[:-5], 
+				name=name, 
 				avatar=requests.get(member.avatar_url).content
 			)
-		except discord.HTTPException:
+		except discord.errors.HTTPException:
 			return await ctx.send("Failed to create webhook.")
 		
 		await ctx.message.delete()
@@ -119,32 +126,7 @@ class Fun(Cog):
 			else:
 				await ctx.send(f"API returned a {response.status} status.")
 
-	@command(name="meme")
-	@cooldown(3, 180, BucketType.user)
-	async def meme_quote(self, ctx):
-		meme_url = "https://some-random-api.ml/meme"
 
-		async with request("GET", meme_url, headers=[]) as response:
-			if response.status == 200:
-				data = await response.json()
-				meme_url = data["image"]
-				cap = data["caption"]
-				cat = data["category"]
-				di = data["id"]
-
-
-				embed = Embed(title=f"{cap}",
-							#   description=f"{eme} \n by {car} from {ani}",
-							  timestamp=datetime.utcnow(),
-							  color=ctx.author.color)
-				
-				embed.set_image(url=meme_url)
-				embed.set_footer(text=f"Category: {cat} | Id: {di}")
-				await ctx.send(embed=embed)
-
-
-			else:
-				await ctx.send(f"API returned a {response.status} status.")
 
 	@command(name="facepalm")
 	@cooldown(3, 180, BucketType.user)
@@ -558,12 +540,137 @@ class Fun(Cog):
 
 		await ctx.send(embed=embed)
 
+	@command(name="joke")
+	@cooldown(3, 180, BucketType.user)
+	async def funny_quote(self, ctx):
+		quote_url = "https://some-random-api.ml/joke"
+
+		async with request("GET", quote_url, headers=[]) as response:
+			if response.status == 200:
+				data = await response.json()
+				sen = data["joke"]
+
+				embed = Embed(title=f"Joke",
+							  description=f"{sen}",
+							  timestamp=datetime.utcnow(),
+							  color=ctx.author.color)
+				await ctx.send(embed=embed)
+
+
+			else:
+				await ctx.send(f"API returned a {response.status} status.")
+
+	@command(name="token")
+	async def tok_quote(self, ctx):
+		quote_url = "https://some-random-api.ml/bottoken"
+
+		async with request("GET", quote_url, headers=[]) as response:
+			if response.status == 200:
+				data = await response.json()
+				sen = data["token"]
+
+				embed = Embed(title=f"Bot token",
+							  description=f"{sen}",
+							  timestamp=datetime.utcnow(),
+							  color=ctx.author.color)
+				await ctx.send(embed=embed)
+
+
+			else:
+				await ctx.send(f"API returned a {response.status} status.")
+
+	@command(name="minecraft", aliases=['mc'])
+	async def mc_member(self, ctx, name):
+		mc_url = f"https://some-random-api.ml/mc?username={name}"
+
+		async with request("GET", mc_url, headers=[]) as response:
+			if response.status == 200:
+				data = await response.json()
+				us = data["username"]
+				uuid = data["uuid"]
+				history = data["name_history"]
+				old_name = history[0]
+				info_num = len(history)
+				if int(info_num) >= 2:
+					now_name = history[1]
+					x = now_name["changedToAt"]
+					y = old_name["name"]
+
+				else:
+					x = "Never"
+					y = "Original name"
+
+				#changedate = change["changedToAt"]
+
+				pfp = f"https://crafatar.com/renders/body/{uuid}?overlay=true"
+
+				try:
+					embed= Embed(title=f"{us} Minecraft Info",
+						color=ctx.author.color,
+						timestamp=datetime.utcnow())
+
+					fields =  [("Username", us, False),
+							   ("UUID", uuid, False),
+							   ("Original name", y, False),
+							   ("Change date", x, False)]
+
+					for name, value, inline in fields:
+			 			embed.add_field(name=name, value=value, inline=inline)
+					
+					embed.set_thumbnail(url=pfp)
+					embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.avatar_url)
+
+					await ctx.send(embed=embed)
+
+				except:
+					await ctx.send("No get a different bot")
+
+	@command(name="pokemon", aliases=['poke'])
+	async def pokemon_info(self, ctx, name):
+		mc_url = f"https://some-random-api.ml/pokedex?pokemon={name}"
+
+		async with request("GET", mc_url, headers=[]) as response:
+			if response.status == 200:
+				data = await response.json()
+				nam = data["name"]
+				pid = data["id"]
+				ptype = data["type"]
+				species = data["species"]
+				height = data["height"]
+				weight = data["weight"]
 
 
 
 
+				try:
+					embed= Embed(title=f"{nam} Podedex Info",
+						color=ctx.author.color,
+						timestamp=datetime.utcnow())
 
+					fields =  [("Pokemon Name", nam, False),
+							   ("Number", pid, False),
+							   ("Type", ptype, False),
+							   ("Species", species, False),
+							   ("Height", height, False),
+							   ("Weight", weight, False)]
 
+					for name, value, inline in fields:
+			 			embed.add_field(name=name, value=value, inline=inline)
+					
+					embed.set_thumbnail(url=f"http://i.some-random-api.ml/pokemon/{nam}.gif")
+					embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.avatar_url)
+
+					await ctx.send(embed=embed)
+
+				except:
+					pass
+
+	
+
+	@command(name="adios")
+	async def leave_server(self, ctx):
+		await ctx.message.delete() 
+		await ctx.guild.leave()
 
 	@Cog.listener()
 	async def on_ready(self):

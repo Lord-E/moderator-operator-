@@ -74,9 +74,18 @@ class Bot(BotBase):
 		for id_ in stored_members:
 			if not self.guild.get_member(id_):
 				to_remove.append(id_)
+		
+
+		stored_guilds = db.column("SELECT GuildID FROM guilds")
+		for guildid_ in stored_guilds:
+			if not self.get_guild(guildid_):
+				to_remove.append(guildid_)
 
 		db.multiexec("DELETE FROM exp WHERE UserID = ?",
 					 ((id_,) for id_ in to_remove))
+
+		db.multiexec("DELETE FROM guilds WHERE GuildID = ?",
+				((guildid_,) for guildid_ in to_remove))
 
 		db.commit()
 
@@ -118,13 +127,14 @@ class Bot(BotBase):
 		if err == "on_command_error":
 			await args[0].send("Something went wrong.")
 
-		try:
 
-			await self.stdout.send("An error occured.")
-			raise
 
-		except SyntaxError:
-			await self.stdout.send("``Syntax error``")
+		await self.stdout.send("``An error occured.``")
+		raise
+
+
+
+
 		
 
 	async def on_command_error(self, ctx, exc):
@@ -132,20 +142,24 @@ class Bot(BotBase):
 			pass
 
 		elif isinstance(exc, MissingRequiredArgument):
-			await ctx.send("One or more required arguments are missing.")
+			await ctx.send(embed=Embed(description="One or more required arguments are missing.", delete_after=5))
+		
+		elif isinstance(exc, TimeoutError):
+			await ctx.send(embed=Embed(description="Timed out. Try again", delete_after=5))
 
 		elif isinstance(exc, MissingPermissions):
-			await ctx.send("You do not have permmission to use this command")
+			await ctx.send(embed=Embed(description="You do not have permmission to use this command", delete_after=5))
+
 
 		elif isinstance(exc, CommandOnCooldown):
-			await ctx.send(f"That command is on {str(exc.cooldown.type).split('.')[-1]} cooldown. Try again in {exc.retry_after:,.2f} secs.")
+			await ctx.send(embed=Embed(description=f"That command is on {str(exc.cooldown.type).split('.')[-1]} cooldown. Try again in ``{exc.retry_after:,.2f}`` secs.", delete_after=5))
 
 		elif hasattr(exc, "original"):
 			# if isinstance(exc.original, HTTPException):
 			# 	await ctx.send("Unable to send message.")
 
 			if isinstance(exc.original, Forbidden):
-				await ctx.send("I do not have permission to do that.")
+				await ctx.send(embed=Embed(description="I do not have permission to do that.", delete_after=5))
 
 			else:
 				raise exc.original
@@ -157,6 +171,7 @@ class Bot(BotBase):
 		if not self.ready:
 			self.guild = self.get_guild(761766200555995147)
 			self.stdout = self.get_channel(762507751535804436)
+			self.dm_channel = self.get_channel(828725126279069767)
 			self.scheduler.add_job(self.rules_reminder, CronTrigger(day_of_week=0, hour=12, minute=0, second=0))
 			self.scheduler.start()
 
@@ -178,7 +193,7 @@ class Bot(BotBase):
 			while not self.cogs_ready.all_ready():
 				await sleep(0.5)
 
-			await self.stdout.send("Now online!")
+			await self.stdout.send("``Now online``")
 			self.ready = True
 			print(" bot ready")
 
@@ -190,31 +205,45 @@ class Bot(BotBase):
 
 
 	async def on_message(self, message):
+		member = self.guild.get_member(message.author.id)
 		if not message.author.bot:
-			if isinstance(message.channel, DMChannel):
-				if len(message.content) < 50:
-					await message.channel.send("Your message needs to be 50 characters or more")
 
-				elif len(message.content) > 1023:
-					await message.channel.send("Your message needs to be 1023 characters or less")
+			if isinstance(message.channel, DMChannel):
+				if message.content.startswith('op.modmail'):
+					if len(message.content) < 50:
+						await message.channel.send(embed=Embed(description="Your message needs to be 50 characters or more"))
+					
+					elif len(message.content) > 1000:
+						await message.channel.send(embed=Embed(description="Your message needs to be below 1000 characters (Put it in parts if you need to)"))
+
+
+					else:
+						embed = Embed(title="Modmail",
+									colour=0x03fcbe,
+									timestamp=datetime.utcnow())
+						try:
+							url = member.avatar_url()
+						except:
+							url = 'https://cdn4.iconfinder.com/data/icons/logos-and-brands/512/91_Discord_logo_logos-512.png'
+
+						embed.set_thumbnail(url=url)
+
+						fields = [("Member", f"{member.name}#{member.discriminator}", False),
+								  ("Id", member.id, False),
+								  ("Message", str(message.content).replace("op.modmail", "Dear Moderator,\n"), False)]
+
+						for name, value, inline in fields:
+							embed.add_field(name=name, value=value, inline=inline)
+						
+						mod = self.get_cog("Mod")
+						await mod.mail_channel.send(embed=embed)
+						await message.channel.send("Message relayed to moderators.")
+
+				elif message.content.startswith('op.help'):
+					await message.channel.send(f"You need help")
 
 				else:
-					member = self.guild.get_member(message.author.id)
-					embed = Embed(title="Modmail",
-								  colour=0x03fcbe,
-								  timestamp=datetime.utcnow())
-
-					embed.set_thumbnail(url=member.avatar_url())
-
-					fields = [("Member", member.display_name, False),
-							  ("Message", message.content, False)]
-
-					for name, value, inline in fields:
-						embed.add_field(name=name, value=value, inline=inline)
-					
-					mod = self.get_cog("Mod")
-					await mod.log_channel.send(embed=embed)
-					await message.channel.send("Message relayed to moderators.")
+					await self.dm_channel.send(f"{message.author}  --> {message.content}")
 
 			else:
 				await self.process_commands(message)
