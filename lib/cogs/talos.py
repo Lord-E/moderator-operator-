@@ -15,7 +15,7 @@ import aiohttp
 import io
 import asyncpraw 
 import pyautogui, sys
-
+from prsaw import RandomStuff
 
 class Talos(Cog):
 	def __init__(self, bot):
@@ -63,11 +63,12 @@ class Talos(Cog):
 
 
 
-
 	@Cog.listener()
 	async def on_ready(self):
 		if not self.bot.ready:
 			self.bot.cogs_ready.ready_up("talos")
+
+
 
 def setup(bot):
 	bot.add_cog(Talos(bot))

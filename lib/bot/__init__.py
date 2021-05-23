@@ -12,7 +12,7 @@ from discord.ext.commands import (CommandNotFound, BadArgument, MissingRequiredA
 								  CommandOnCooldown, MissingPermissions)
 from discord.ext.commands import when_mentioned_or, command, has_permissions
 from discord import Intents 
-
+from prsaw import RandomStuff
 from ..db import db
 
 OWNER_IDS = [717486310566133844]
@@ -115,7 +115,7 @@ class Bot(BotBase):
 				await self.invoke(ctx)
 
 	async def rules_reminder(self):
-		await self.stdout.send("Remember to adhere to the rules!")
+		await self.stdout.send("")
 
 	async def on_connect(self):
 		print(" bot connected")
@@ -193,7 +193,7 @@ class Bot(BotBase):
 			while not self.cogs_ready.all_ready():
 				await sleep(0.5)
 
-			await self.stdout.send("``Now online``")
+			await self.stdout.send("`` ███╗   ██╗ ██████╗ ██╗    ██╗     ██████╗ ███╗   ██╗██╗     ██╗███╗   ██╗███████╗ \n  ████╗  ██║██╔═══██╗██║    ██║    ██╔═══██╗████╗  ██║██║     ██║████╗  ██║██╔════╝ \n  ██╔██╗ ██║██║   ██║██║ █╗ ██║    ██║   ██║██╔██╗ ██║██║     ██║██╔██╗ ██║█████╗ \n  ██║╚██╗██║██║   ██║██║███╗██║    ██║   ██║██║╚██╗██║██║     ██║██║╚██╗██║██╔══╝ \n  ██║ ╚████║╚██████╔╝╚███╔███╔╝    ╚██████╔╝██║ ╚████║███████╗██║██║ ╚████║███████╗ \n  ╚═╝  ╚═══╝ ╚═════╝  ╚══╝╚══╝      ╚═════╝ ╚═╝  ╚═══╝╚══════╝╚═╝╚═╝  ╚═══╝╚══════╝``")
 			self.ready = True
 			print(" bot ready")
 
@@ -207,7 +207,29 @@ class Bot(BotBase):
 	async def on_message(self, message):
 		member = self.guild.get_member(message.author.id)
 		if not message.author.bot:
+			if int(message.channel.id) == 837453025932738610:
+				f = open("./data/number.txt", "r")
+				num = int(f.read())
 
+
+				x = message.content
+				# messages = await message.channel.history(limit=200).flatten()
+				if x.isdigit():
+				# 	for mess in messages:
+				# 		if mess != str(num):
+				# 			await message.delete()
+					if int(x) == num:
+						num += 1 
+						f = open("./data/number.txt", "w")
+						f.write(str(num))
+						f.close()
+
+					else:
+						await message.delete()
+
+				else:
+					await message.delete()
+#------------------------------------------------------------------------------------------------------------------------------------------------------------
 			if isinstance(message.channel, DMChannel):
 				if message.content.startswith('op.modmail'):
 					if len(message.content) < 50:
@@ -238,12 +260,19 @@ class Bot(BotBase):
 						mod = self.get_cog("Mod")
 						await mod.mail_channel.send(embed=embed)
 						await message.channel.send("Message relayed to moderators.")
-
+#------------------------------------------------------------------------------------------------------------------------------------------------------------
 				elif message.content.startswith('op.help'):
 					await message.channel.send(f"You need help")
-
+#------------------------------------------------------------------------------------------------------------------------------------------------------------
+				
+				
 				else:
 					await self.dm_channel.send(f"{message.author}  --> {message.content}")
+			
+			# elif message.channel.id == 845067601309859850 or 845067310631878656:
+			# 	rs = RandomStuff(async_mode = True)
+			# 	r = await rs.get_ai_response(message.content)
+			# 	await message.reply(r)
 
 			else:
 				await self.process_commands(message)
