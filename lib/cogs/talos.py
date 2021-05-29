@@ -15,7 +15,6 @@ import aiohttp
 import io
 import asyncpraw 
 import pyautogui, sys
-from prsaw import RandomStuff
 
 class Talos(Cog):
 	def __init__(self, bot):

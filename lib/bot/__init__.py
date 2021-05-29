@@ -12,7 +12,6 @@ from discord.ext.commands import (CommandNotFound, BadArgument, MissingRequiredA
 								  CommandOnCooldown, MissingPermissions)
 from discord.ext.commands import when_mentioned_or, command, has_permissions
 from discord import Intents 
-from prsaw import RandomStuff
 from ..db import db
 
 OWNER_IDS = [717486310566133844]
@@ -197,8 +196,8 @@ class Bot(BotBase):
 			self.ready = True
 			print(" bot ready")
 
-			# meta = self.get_cog("Meta")
-			# await meta.set()
+			meta = self.get_cog("Meta")
+			await meta.set()
 
 		else:
 			print("bot reconnected")
@@ -269,10 +268,7 @@ class Bot(BotBase):
 				else:
 					await self.dm_channel.send(f"{message.author}  --> {message.content}")
 			
-			# elif message.channel.id == 845067601309859850 or 845067310631878656:
-			# 	rs = RandomStuff(async_mode = True)
-			# 	r = await rs.get_ai_response(message.content)
-			# 	await message.reply(r)
+
 
 			else:
 				await self.process_commands(message)
